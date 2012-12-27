@@ -4,9 +4,17 @@ namespace SimpleHttpClient;
 
 class SimpleHttpClient
 {
-	public $host;
-	public $port;
-	public $client;
+	protected $host;
+	protected $port;
+	protected $client;
+	protected $user;
+	protected $pass;
+	protected $contentType;
+	protected $debug;
+
+	private $validKeys = [
+		'host', 'port', 'user', 'pass', 'contentType', 'debug'
+	];
 
 	public function __construct(Array $options = []){
 		$this->host = $options['host'];
@@ -15,6 +23,53 @@ class SimpleHttpClient
 		$this->pass = $options['pass'];
 		$this->contentType = $options['contentType'];
 		$this->debug = (bool)$options['debug'];
+	}
+
+	public function setUser($user){
+		$this->user = $user;
+	}
+
+	public function setPassword($pass){
+		$this->pass = $pass;
+	}
+
+	public function setHost($host){
+		$this->host = $host;
+	}
+
+	public function getOptions(){
+		$options = [];
+		foreach($this->validKeys as $key){
+			$options[$key] = $this->$key;
+		}
+		return $options;
+	}
+
+	public function setPort($port){
+		$this->port = $port;
+	}
+
+	public function setDebug($port){
+		$this->debug = $debug;
+	}
+
+	public function setContentType($contentType){
+		$this->contentType = $contentType;
+	}
+
+	public function setOption($key, $value){
+		if(in_array($k, $this->validKeys)){
+			$this->$k = $v;
+		}
+		else{
+			throw new \Exception('Invalid option: '.$k);
+		}
+	}
+
+	public function setOptions(Array $options){
+		foreach($options as $k => $v){
+			$this->setOption($k, $v);
+		}
 	}
 
 	public function get($path){
