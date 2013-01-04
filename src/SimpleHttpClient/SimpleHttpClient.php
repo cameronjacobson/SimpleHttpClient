@@ -119,7 +119,7 @@ class SimpleHttpClient
 		if (!empty($body)) {
 			$request .= 'Content-Length: ' . strlen($body) . "\r\n";
 		}
-		$request .= "\r\n".$payload;
+		$request .= "\r\n".$body;
 
 		if($this->debug){
 			echo 'SENDING: '.PHP_EOL;
