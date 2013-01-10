@@ -2,7 +2,7 @@
     "name": "datashovel/simplehttpclient",
     "description": "SimpleHttpClient written in PHP",
     "keywords": ["http", "client"],
-    "license": "GPL-3.0",
+    "license": "BSD-2-Clause",
     "authors": [
         {
             "name": "Cameron Jacobson",
