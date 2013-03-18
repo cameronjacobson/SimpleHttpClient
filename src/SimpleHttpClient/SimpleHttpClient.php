@@ -101,8 +101,8 @@ class SimpleHttpClient
 		}
 
 		$headers = array(
-			'%s %s HTTP/1.1',
-			'Host: %s %d',
+			'%s %s HTTP/1.0',
+			'Host: %s:%d',
 			'%sContent-Type: %s',
 			'Connection: close'
 		);
