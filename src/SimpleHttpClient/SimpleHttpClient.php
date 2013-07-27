@@ -2,6 +2,16 @@
 
 namespace SimpleHttpClient;
 
+use \Event;
+use \EventBase;
+use \EventUtil;
+use \EventBuffer;
+use \EventDnsBase;
+use \EventBufferEvent;
+use \EventHttpConnection;
+use \EventHttpRequest;
+use \SplQueue;
+
 class SimpleHttpClient
 {
 	protected $host;
@@ -11,18 +21,61 @@ class SimpleHttpClient
 	protected $pass;
 	protected $contentType;
 	protected $debug;
+	protected $multi;
+	protected $queue;
+	private $count = 0;
+	private $buffers = array();
+	private $errors = array();
+	private $filter;
 
 	private $validKeys = [
-		'host', 'port', 'user', 'pass', 'contentType', 'debug'
+		'host', 'port', 'user', 'pass', 'contentType', 'debug', 'multi'
 	];
+
+	public function getBuffers($filter = null){
+		$return = array();
+		foreach($this->buffers as $key=>$value){
+			if(is_string($filter)){
+				$return[$key] = $this->commonFilters($filter, $value);
+			}
+			elseif(is_callable($filter)){
+				$return[$key] = $filter($value);
+			}
+			else{
+				return $this->buffers;
+			}
+		}
+		return $return;
+	}
+
+	public function flush(){
+		$this->count = 0;
+		$this->buffers = array();
+	}
+
+	private function commonFilters($filterName, $value){
+		switch($filterName){
+			case 'headers':
+				list($header,$body) = explode("\r\n\r\n",$value,2);
+				return $header;
+				break;
+			case 'body':
+				list($header,$body) = explode("\r\n\r\n",$value,2);
+				return $body;
+				break;
+		}
+	}
 
 	public function __construct(Array $options = []){
 		$this->host = $options['host'];
 		$this->port = $options['port'];
 		$this->user = $options['user'];
 		$this->pass = $options['pass'];
-		$this->contentType = $options['contentType'];
+		$this->contentType = $options['contentType'] ?: 'application/json';
 		$this->debug = (bool)$options['debug'];
+		$this->multi = $options['multi'];
+		$this->queue = new SplQueue();
+		$this->base = new EventBase();
 	}
 
 	public function setUser($user){
@@ -49,8 +102,12 @@ class SimpleHttpClient
 		$this->port = $port;
 	}
 
-	public function setDebug($port){
+	public function setDebug($debug){
 		$this->debug = $debug;
+	}
+
+	public function setMulti($multi){
+		$this->multi = $multi;
 	}
 
 	public function setContentType($contentType){
@@ -88,59 +145,75 @@ class SimpleHttpClient
 		return $this->sendRequest($method,$path,$body);
 	}
 
-	public function delete($path){
-		return $this->sendRequest('DELETE', $path);
+	public function delete($path, $body){
+		return $this->sendRequest('DELETE', $path, $body);
 	}
 
-	public function sendRequest($method, $url, $body = '')
-	{
-		$client = stream_socket_client('tcp://'.$this->host.':'.$this->port, $errno, $errstr, 30);
-
-		if (!$client) {
-			throw new \Exception($errno.':'.$errstr);
+	public function fetch(){
+		if(!empty($this->queue)){
+			foreach($this->queue as $fn){
+				$fn();
+				$this->queue->dequeue();
+			}
+			$this->base->dispatch();
 		}
+	}
 
-		$headers = array(
-			'%s %s HTTP/1.0',
-			'Host: %s:%d',
-			'%sContent-Type: %s',
-			'Connection: close'
-		);
-		$request = sprintf(
-			implode("\r\n",$headers)."\r\n",
-			$method,
-			$url,
-			$this->host,
-			$this->port,
-			empty($this->user) ? '' : 'Authorization: Basic '.base64_encode($this->user.':'.$this->pass)."\r\n",
-			@$this->contentType ?: 'application/json'
-		);
+	public function sendRequest($method, $url, $body = '') {
+		$host = $this->host;
+		$port = $this->port;
+		$base = $this->base;
+		$count = ++$this->count;
+		$fn = function() use($base, $host, $port, $method, $url, $body, $count) {
 
-		if (!empty($body)) {
-			$request .= 'Content-Length: ' . strlen($body) . "\r\n";
-		}
-		$request .= "\r\n".$body;
+			$dns_base = new EventDnsBase($base, TRUE);
 
-		if($this->debug){
-			echo 'SENDING: '.PHP_EOL;
-			echo $request;
-		}
+			$readcb = function($bev, $count){
+				$bev->readBuffer($bev->input);
+				$this->buffers[$count] = empty($this->buffers[$count]) ? '' : $this->buffers[$count];
+				while($line = $bev->input->read(1024)){
+					$this->buffers[$count] .= $line;
+				}
+			};
 
-		fwrite($client, $request);
+			$eventcb = function($bev, $events, $count){
+				if($events & (EventBufferEvent::ERROR | EventBufferEvent::EOF)){
+					if($events & EventBufferEvent::ERROR){
+						$this->errors[$count] = 'DNS error: '.$bev->getDnsErrorString().PHP_EOL;
+					}
+				}
+			};
 
-		$buffer = '';
+			$readcb->bindTo($this);
+			$eventcb->bindTo($this);
 
-		while (!feof($client)) {
-			$buffer .= fgets($client);
-		}
+			$bev = new EventBufferEvent($this->base, NULL,
+			    EventBufferEvent::OPT_CLOSE_ON_FREE | EventBufferEvent::OPT_DEFER_CALLBACKS,
+			    $readcb, NULL, $eventcb, $count
+			);
+			$bev->setWatermark(Event::READ|Event::WRITE,0,0);
 
-		if($this->debug){
-			echo 'RECEIVING: '.PHP_EOL;
-			echo $buffer;
-		}
+			$bev->enable(Event::READ | Event::WRITE);
 
-		list($headers, $body) = explode("\r\n\r\n", $buffer);
+			$output = $bev->output; 
 
-		return ['headers' => $headers, 'body' => $body];
+			if (!$output->add(
+			    "{$method} {$url} HTTP/1.0\r\n".
+			    "Host: {$this->host}:{$this->port}\r\n".
+				(empty($this->user) ? '' : 'Authorization: Basic '.base64_encode($this->user.':'.$this->pass)."\r\n").
+				"Content-Type: {$this->contentType}\r\n".
+				'Content-Length: ' . strlen($body) . "\r\n".
+			    "Connection: Close\r\n\r\n{$body}"
+			)) {
+			    exit("Failed adding request to output buffer\n");
+			}
+
+			if (!$bev->connectHost($dns_base, $this->host, $this->port, EventUtil::AF_UNSPEC)) {
+			    exit("Can't connect to host {$this->host}\n");
+			}
+
+		};
+		$fn->bindTo($this);
+		$this->queue->enqueue($fn);
 	}
 }
