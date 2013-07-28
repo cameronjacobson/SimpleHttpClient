@@ -29,6 +29,8 @@ class SimpleHttpClient
 	private $errors = array();
 	private $filter;
 
+	const MIN_WATERMARK = 512;
+
 	private $validKeys = [
 		'scheme', 'host', 'port', 'user', 'pass', 'contentType', 'debug', 'multi'
 	];
@@ -176,7 +178,7 @@ class SimpleHttpClient
 			$readcb = function($bev, $count){
 				$bev->readBuffer($bev->input);
 				$this->buffers[$count] = empty($this->buffers[$count]) ? '' : $this->buffers[$count];
-				while($line = $bev->input->read(1024)){
+				while($line = $bev->input->read(SimpleHttpClient::MIN_WATERMARK * 2)){
 					$this->buffers[$count] .= $line;
 				}
 			};
@@ -185,6 +187,9 @@ class SimpleHttpClient
 				if($events & (EventBufferEvent::ERROR | EventBufferEvent::EOF)){
 					if($events & EventBufferEvent::ERROR){
 						$this->errors[$count] = 'DNS error: '.$bev->getDnsErrorString().PHP_EOL;
+					}
+					if($events & EventBufferEvent::EOF){
+						$this->buffers[$count] .= $bev->input->read(SimpleHttpClient::MIN_WATERMARK * 10);
 					}
 				}
 			};
@@ -196,7 +201,7 @@ class SimpleHttpClient
 			    EventBufferEvent::OPT_CLOSE_ON_FREE | EventBufferEvent::OPT_DEFER_CALLBACKS,
 			    $readcb, NULL, $eventcb, $count
 			);
-			$bev->setWatermark(Event::READ|Event::WRITE,0,0);
+			$bev->setWatermark(Event::READ|Event::WRITE, SimpleHttpClient::MIN_WATERMARK, 0);
 
 			$bev->enable(Event::READ | Event::WRITE);
 
