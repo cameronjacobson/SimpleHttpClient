@@ -49,6 +49,10 @@ class SimpleHttpClient
 		return $return;
 	}
 
+	public function getCount(){
+		return $this->count;
+	}
+
 	public function flush(){
 		$this->count = 0;
 		$this->buffers = array();
