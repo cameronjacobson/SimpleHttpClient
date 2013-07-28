@@ -14,9 +14,9 @@ try{
 	$start = microtime(true);
 
 	$client->get('/');
-	$client->post('/', 'k=v');
-	$client->put('/','key=val');
-	$client->delete('/','key2=val2');
+	//$client->post('/', 'k=v');
+	//$client->put('/','key=val');
+	//$client->delete('/','key2=val2');
 	$client->fetch();
 
 	$buffers = $client->getBuffers(function($val){return $val;});

@@ -14,6 +14,7 @@ use \SplQueue;
 
 class SimpleHttpClient
 {
+	protected $scheme;
 	protected $host;
 	protected $port;
 	protected $client;
@@ -29,7 +30,7 @@ class SimpleHttpClient
 	private $filter;
 
 	private $validKeys = [
-		'host', 'port', 'user', 'pass', 'contentType', 'debug', 'multi'
+		'scheme', 'host', 'port', 'user', 'pass', 'contentType', 'debug', 'multi'
 	];
 
 	public function getBuffers($filter = null){
@@ -72,8 +73,8 @@ class SimpleHttpClient
 		$this->user = $options['user'];
 		$this->pass = $options['pass'];
 		$this->contentType = $options['contentType'] ?: 'application/json';
-		$this->debug = (bool)$options['debug'];
-		$this->multi = $options['multi'];
+		$this->debug = empty($options['debug']) ? false : true;
+		$this->multi = empty($options['multi']) ? null : $options['multi'];
 		$this->queue = new SplQueue();
 		$this->base = new EventBase();
 	}
