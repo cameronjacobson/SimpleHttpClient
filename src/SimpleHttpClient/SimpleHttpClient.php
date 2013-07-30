@@ -189,6 +189,7 @@ class SimpleHttpClient
 						$this->errors[$count] = 'DNS error: '.$bev->getDnsErrorString().PHP_EOL;
 					}
 					if($events & EventBufferEvent::EOF){
+						$this->buffers[$count] = empty($this->buffers[$count]) ? '' : $this->buffers[$count];
 						$this->buffers[$count] .= $bev->input->read(SimpleHttpClient::MIN_WATERMARK * 10);
 					}
 				}
