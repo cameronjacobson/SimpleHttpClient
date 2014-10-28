@@ -58,6 +58,7 @@ class SimpleHttpClient
 	public function flush(){
 		$this->count = 0;
 		$this->buffers = array();
+		$this->finished = array();
 	}
 
 	private function commonFilters($filterName, $value){
@@ -160,7 +161,6 @@ class SimpleHttpClient
 		if(!empty($this->queue)){
 			foreach($this->queue as $fn){
 				$fn();
-				$this->queue->dequeue();
 			}
 			$this->base->dispatch();
 		}
@@ -172,8 +172,7 @@ class SimpleHttpClient
 		$base = $this->base;
 		$count = ++$this->count;
 		$fn = function() use($base, $host, $port, $method, $url, $body, $count) {
-
-			$dns_base = new EventDnsBase($base, TRUE);
+			$this->dns_base = new EventDnsBase($base, TRUE);
 
 			$readcb = function($bev, $count){
 				$bev->readBuffer($bev->input);
@@ -191,13 +190,18 @@ class SimpleHttpClient
 					if($events & EventBufferEvent::EOF){
 						$this->buffers[$count] = empty($this->buffers[$count]) ? '' : $this->buffers[$count];
 						$this->buffers[$count] .= $bev->input->read(SimpleHttpClient::MIN_WATERMARK * 10);
+
+						$this->finished[$count] = true;
+						if(count($this->finished) >= $this->getCount()){
+							$this->base->exit();
+						}
+
 					}
 				}
 			};
 
 			$readcb->bindTo($this);
 			$eventcb->bindTo($this);
-
 			$bev = new EventBufferEvent($this->base, NULL,
 			    EventBufferEvent::OPT_CLOSE_ON_FREE | EventBufferEvent::OPT_DEFER_CALLBACKS,
 			    $readcb, NULL, $eventcb, $count
@@ -219,7 +223,7 @@ class SimpleHttpClient
 			    exit("Failed adding request to output buffer\n");
 			}
 
-			if (!$bev->connectHost($dns_base, $this->host, $this->port, EventUtil::AF_UNSPEC)) {
+			if (!$bev->connectHost($this->dns_base, $this->host, $this->port, EventUtil::AF_UNSPEC)) {
 			    exit("Can't connect to host {$this->host}\n");
 			}
 
