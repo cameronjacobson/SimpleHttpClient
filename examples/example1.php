@@ -19,11 +19,24 @@ try{
 	//$client->delete('/','key2=val2');
 	$client->fetch();
 
+    echo PHP_EOL.'RAW RESULTS:'.PHP_EOL;
+    echo '====================='.PHP_EOL;
 	$buffers = $client->getBuffers(function($val){return $val;});
 	var_dump($buffers);
+
+    echo PHP_EOL.'BODY ONLY:'.PHP_EOL;
+    echo '====================='.PHP_EOL;
 	$buffers = $client->getBuffers('body');
 	var_dump($buffers);
-	$buffers = $client->getBuffers('headers');
+
+    echo PHP_EOL.'RAW HEADERS:'.PHP_EOL;
+    echo '====================='.PHP_EOL;
+	$buffers = $client->getBuffers('raw_headers');
+	var_dump($buffers);
+
+    echo PHP_EOL.'PARSED HEADERS:'.PHP_EOL;
+    echo '====================='.PHP_EOL;
+	$buffers = $client->getBuffers('parsed_headers');
 	var_dump($buffers);
 
 	$client->flush();

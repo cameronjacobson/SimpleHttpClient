@@ -63,13 +63,17 @@ class SimpleHttpClient
 
 	private function commonFilters($filterName, $value){
 		switch($filterName){
-			case 'headers':
+			case 'raw_headers':
 				list($header,$body) = explode("\r\n\r\n",$value,2);
 				return $header;
 				break;
 			case 'body':
 				list($header,$body) = explode("\r\n\r\n",$value,2);
 				return $body;
+				break;
+			case 'parsed_headers':
+				list($header) = explode("\r\n\r\n",$value,2);
+				return $this->parseHeaders($header);
 				break;
 		}
 	}
@@ -84,6 +88,7 @@ class SimpleHttpClient
 		$this->multi = empty($options['multi']) ? null : $options['multi'];
 		$this->queue = new SplQueue();
 		$this->base = new EventBase();
+		$this->dns_base = new EventDnsBase($this->base, TRUE);
 	}
 
 	public function setUser($user){
@@ -172,7 +177,6 @@ class SimpleHttpClient
 		$base = $this->base;
 		$count = ++$this->count;
 		$fn = function() use($base, $host, $port, $method, $url, $body, $count) {
-			$this->dns_base = new EventDnsBase($base, TRUE);
 
 			$readcb = function($bev, $count){
 				$bev->readBuffer($bev->input);
@@ -230,5 +234,31 @@ class SimpleHttpClient
 		};
 		$fn->bindTo($this);
 		$this->queue->enqueue($fn);
+	}
+
+	private function parseHeaders($raw_headers){
+
+		// for headers that continue to next line
+		$headers = preg_replace("/\r\n\s+?/"," ",$raw_headers);
+
+		$headers = explode("\r\n",$headers);
+		$head = array_shift($headers);
+
+		list($protocol,$code,$status) = preg_split("/[\s]+/", trim($head),-1,PREG_SPLIT_NO_EMPTY);
+
+		$parsed_headers = array(
+			'__head__'=>array(
+				'protocol'=>$protocol,
+				'code'=>$code,
+				'status'=>$status
+			)
+		);
+
+		foreach($headers as $header){
+			list($k,$v) = explode(':',$header,2);
+			$parsed_headers[strtolower(trim($k))] = trim($v);
+		}
+
+		return $parsed_headers;
 	}
 }
