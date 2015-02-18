@@ -87,8 +87,8 @@ class SimpleHttpClient
 		$this->debug = empty($options['debug']) ? false : true;
 		$this->multi = empty($options['multi']) ? null : $options['multi'];
 		$this->queue = new SplQueue();
-		$this->base = new EventBase();
-		$this->dns_base = new EventDnsBase($this->base, TRUE);
+		$this->base = empty($options['base']) ? new EventBase() : $options['base'];
+		$this->dns_base = empty($options['dns_base']) ? new EventDnsBase($this->base, TRUE) : $options['dns_base'];
 	}
 
 	public function setUser($user){
@@ -97,6 +97,10 @@ class SimpleHttpClient
 
 	public function setPassword($pass){
 		$this->pass = $pass;
+	}
+
+	public function setCallback(callable $fn){
+		$this->callback = $fn;
 	}
 
 	public function setHost($host){
@@ -162,6 +166,14 @@ class SimpleHttpClient
 		return $this->sendRequest('DELETE', $path, $body);
 	}
 
+	public function dispatch(){
+		if(!empty($this->queue)){
+			foreach($this->queue as $fn){
+				$fn(true);
+			}
+		}
+	}
+
 	public function fetch(){
 		if(!empty($this->queue)){
 			foreach($this->queue as $fn){
@@ -175,9 +187,9 @@ class SimpleHttpClient
 		$host = $this->host;
 		$port = $this->port;
 		$base = $this->base;
+		$cb = $this->callback;
 		$count = ++$this->count;
-		$fn = function() use($base, $host, $port, $method, $url, $body, $count) {
-
+		$fn = function($callback = false) use($base, $host, $port, $method, $url, $body, $count, $cb) {
 			$readcb = function($bev, $count){
 				$bev->readBuffer($bev->input);
 				$this->buffers[$count] = empty($this->buffers[$count]) ? '' : $this->buffers[$count];
@@ -186,7 +198,7 @@ class SimpleHttpClient
 				}
 			};
 
-			$eventcb = function($bev, $events, $count){
+			$eventcb = function($bev, $events, $count) use($callback,$cb){
 				if($events & (EventBufferEvent::ERROR | EventBufferEvent::EOF)){
 					if($events & EventBufferEvent::ERROR){
 						$this->errors[$count] = 'DNS error: '.$bev->getDnsErrorString().PHP_EOL;
@@ -197,7 +209,12 @@ class SimpleHttpClient
 
 						$this->finished[$count] = true;
 						if(count($this->finished) >= $this->getCount()){
-							$this->base->exit();
+							if($callback){
+								$cb();
+							}
+							else{
+								$this->base->exit();
+							}
 						}
 
 					}
