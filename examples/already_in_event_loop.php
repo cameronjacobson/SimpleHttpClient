@@ -1,5 +1,5 @@
 <?php
-    
+	
 require_once(dirname(__DIR__).'/vendor/autoload.php');
 
 use SimpleHttpClient\SimpleHttpClient;
@@ -18,23 +18,23 @@ try{
 	]);
 
 	$client->setCallback(function() use ($client,$base){
-    	echo PHP_EOL.'RAW RESULTS:'.PHP_EOL;
-    	echo '====================='.PHP_EOL;
+		echo PHP_EOL.'RAW RESULTS:'.PHP_EOL;
+		echo '====================='.PHP_EOL;
 		$buffers = $client->getBuffers(function($val){return $val;});
 		var_dump($buffers);
 
-    	echo PHP_EOL.'BODY ONLY:'.PHP_EOL;
-    	echo '====================='.PHP_EOL;
+		echo PHP_EOL.'BODY ONLY:'.PHP_EOL;
+		echo '====================='.PHP_EOL;
 		$buffers = $client->getBuffers('body');
 		var_dump($buffers);
 
-    	echo PHP_EOL.'RAW HEADERS:'.PHP_EOL;
-    	echo '====================='.PHP_EOL;
+		echo PHP_EOL.'RAW HEADERS:'.PHP_EOL;
+		echo '====================='.PHP_EOL;
 		$buffers = $client->getBuffers('raw_headers');
 		var_dump($buffers);
 
-    	echo PHP_EOL.'PARSED HEADERS:'.PHP_EOL;
-    	echo '====================='.PHP_EOL;
+		echo PHP_EOL.'PARSED HEADERS:'.PHP_EOL;
+		echo '====================='.PHP_EOL;
 		$buffers = $client->getBuffers('parsed_headers');
 		var_dump($buffers);
 
