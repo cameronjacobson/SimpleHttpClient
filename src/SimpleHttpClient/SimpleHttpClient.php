@@ -11,6 +11,8 @@ use \EventBufferEvent;
 use \EventHttpConnection;
 use \EventHttpRequest;
 use \SplQueue;
+use \ReflectionFunction;
+use \ReflectionParameter;
 
 class SimpleHttpClient
 {
@@ -28,6 +30,8 @@ class SimpleHttpClient
 	private $buffers = array();
 	private $errors = array();
 	private $filter;
+	private $callback;
+	private $processor;
 
 	const MIN_WATERMARK = 512;
 
@@ -101,6 +105,31 @@ class SimpleHttpClient
 
 	public function setCallback(callable $fn){
 		$this->callback = $fn;
+	}
+
+	/**
+	 * @param $fn - prototype of $fn must be $fn(callable $func)
+	 *              callable $func will be the $fn defined in 'setCallback'
+	 * @return void
+	 *
+	 * NOTE:  This will essentially make it possible to "chain" requests together.
+	 *        Useful for cases where subsequent requests may be dependent on the
+	 *        first request, but you don't want to have to worry about the implementation
+	 *        details to make this happen.  You just want the end result when everything is done.
+	 */
+	public function setProcessor(callable $fn){
+
+		if(empty($this->callback)){
+			throw new \Exception('you must first define a callback with setCallback');
+		}
+
+		$reflect = new ReflectionFunction($fn);
+		$args = $reflect->getParameters();
+		if((count($args) !== 1) || !$args[0]->isCallable()){
+			throw new \Exception('setProcessor callback prototype must be $fn(callable $func)');
+		}
+
+		$this->processor = $fn;
 	}
 
 	public function setHost($host){
@@ -188,8 +217,9 @@ class SimpleHttpClient
 		$port = $this->port;
 		$base = $this->base;
 		$cb = $this->callback;
+		$processor = $this->processor;
 		$count = ++$this->count;
-		$fn = function($callback = false) use($base, $host, $port, $method, $url, $body, $count, $cb) {
+		$fn = function($callback = false) use($base, $host, $port, $method, $url, $body, $count, $cb, $processor) {
 			$readcb = function($bev, $count){
 				$bev->readBuffer($bev->input);
 				$this->buffers[$count] = empty($this->buffers[$count]) ? '' : $this->buffers[$count];
@@ -198,7 +228,7 @@ class SimpleHttpClient
 				}
 			};
 
-			$eventcb = function($bev, $events, $count) use($callback,$cb){
+			$eventcb = function($bev, $events, $count) use($callback,$cb,$processor){
 				if($events & (EventBufferEvent::ERROR | EventBufferEvent::EOF)){
 					if($events & EventBufferEvent::ERROR){
 						$this->errors[$count] = 'DNS error: '.$bev->getDnsErrorString().PHP_EOL;
@@ -208,9 +238,12 @@ class SimpleHttpClient
 						$this->buffers[$count] .= $bev->input->read(SimpleHttpClient::MIN_WATERMARK * 10);
 
 						$this->finished[$count] = true;
-						if(count($this->finished) >= $this->getCount()){
-							if($callback){
-								$cb();
+						if($this->isDone()){
+							if($callback && !empty($processor)){
+								$processor($cb);
+							}
+							else if($callback){
+									$cb();
 							}
 							else{
 								$this->base->exit();
@@ -252,7 +285,9 @@ class SimpleHttpClient
 		$fn->bindTo($this);
 		$this->queue->enqueue($fn);
 	}
-
+	public function isDone(){
+		return count($this->finished) >= $this->getCount();
+	}
 	private function parseHeaders($raw_headers){
 
 		// for headers that continue to next line
