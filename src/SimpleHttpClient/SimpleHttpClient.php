@@ -125,7 +125,7 @@ class SimpleHttpClient
 
 		$reflect = new ReflectionFunction($fn);
 		$args = $reflect->getParameters();
-		if((count($args) !== 1) || !$args[0]->isCallable()){
+		if((count($args) > 2) || !$args[0]->isCallable()){
 			throw new \Exception('setProcessor callback prototype must be $fn(callable $func)');
 		}
 
@@ -240,7 +240,7 @@ class SimpleHttpClient
 						$this->finished[$count] = true;
 						if($this->isDone()){
 							if($callback && !empty($processor)){
-								$processor($cb);
+								$processor($cb, $this->buffers[$count]);
 							}
 							else if($callback){
 									$cb();
