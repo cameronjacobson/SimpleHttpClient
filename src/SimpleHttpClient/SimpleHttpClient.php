@@ -293,9 +293,11 @@ class SimpleHttpClient
 		$fn->bindTo($this);
 		$this->queue->enqueue($fn);
 	}
+
 	public function isDone(){
 		return count($this->finished) >= $this->getCount();
 	}
+
 	private function parseHeaders($raw_headers){
 
 		// for headers that continue to next line
