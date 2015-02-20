@@ -202,7 +202,8 @@ class SimpleHttpClient
 
 	public function dispatch(){
 		if(!empty($this->queue)){
-			foreach($this->queue as $fn){
+			while(count($this->queue) > 0){
+				$fn = $this->queue->dequeue();
 				$fn(true);
 			}
 		}
@@ -210,7 +211,8 @@ class SimpleHttpClient
 
 	public function fetch(){
 		if(!empty($this->queue)){
-			foreach($this->queue as $fn){
+			while(count($this->queue) > 0){
+				$fn = $this->queue->dequeue();
 				$fn();
 			}
 			$this->base->dispatch();
