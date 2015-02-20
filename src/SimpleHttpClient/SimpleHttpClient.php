@@ -102,7 +102,12 @@ class SimpleHttpClient
 	public function setPassword($pass){
 		$this->pass = $pass;
 	}
-
+	public function getProcessor(){
+		return $this->processor;
+	}
+	public function getCallback(){
+		return $this->callback;
+	}
 	public function setCallback(callable $fn){
 		$this->callback = $fn;
 	}
@@ -216,10 +221,8 @@ class SimpleHttpClient
 		$host = $this->host;
 		$port = $this->port;
 		$base = $this->base;
-		$cb = $this->callback;
-		$processor = $this->processor;
 		$count = ++$this->count;
-		$fn = function($callback = false) use($base, $host, $port, $method, $url, $body, $count, $cb, $processor) {
+		$fn = function($callback = false) use($base, $host, $port, $method, $url, $body, $count) {
 			$readcb = function($bev, $count){
 				$bev->readBuffer($bev->input);
 				$this->buffers[$count] = empty($this->buffers[$count]) ? '' : $this->buffers[$count];
@@ -228,7 +231,7 @@ class SimpleHttpClient
 				}
 			};
 
-			$eventcb = function($bev, $events, $count) use($callback,$cb,$processor){
+			$eventcb = function($bev, $events, $count) use($callback){
 				if($events & (EventBufferEvent::ERROR | EventBufferEvent::EOF)){
 					if($events & EventBufferEvent::ERROR){
 						$this->errors[$count] = 'DNS error: '.$bev->getDnsErrorString().PHP_EOL;
@@ -239,11 +242,14 @@ class SimpleHttpClient
 
 						$this->finished[$count] = true;
 						if($this->isDone()){
+							$processor = $this->getProcessor();
 							if($callback && !empty($processor)){
+								$cb = $this->getCallback();
 								$processor($cb, $count, $this->buffers[$count]);
 							}
 							else if($callback){
-									$cb();
+								$cb = $this->getCallback();
+								$cb();
 							}
 							else{
 								$this->base->exit();
