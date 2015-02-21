@@ -17,38 +17,39 @@ try{
 		'dns_base'=>$dns_base,
 	]);
 
-	$client->setCallback(function() use ($client,$base){
+	$http = $client->getContext();
+
+	$http->setCallback(function() use ($http,$base){
 		echo PHP_EOL.'RAW RESULTS:'.PHP_EOL;
 		echo '====================='.PHP_EOL;
-		$buffers = $client->getBuffers(function($val){return $val;});
+		$buffers = $http->getBuffers(function($val){return $val;});
 		var_dump($buffers);
 
 		echo PHP_EOL.'BODY ONLY:'.PHP_EOL;
 		echo '====================='.PHP_EOL;
-		$buffers = $client->getBuffers('body');
+		$buffers = $http->getBuffers('body');
 		var_dump($buffers);
 
 		echo PHP_EOL.'RAW HEADERS:'.PHP_EOL;
 		echo '====================='.PHP_EOL;
-		$buffers = $client->getBuffers('raw_headers');
+		$buffers = $http->getBuffers('raw_headers');
 		var_dump($buffers);
 
 		echo PHP_EOL.'PARSED HEADERS:'.PHP_EOL;
 		echo '====================='.PHP_EOL;
-		$buffers = $client->getBuffers('parsed_headers');
+		$buffers = $http->getBuffers('parsed_headers');
 		var_dump($buffers);
 
-		$client->flush();
 		$base->exit();
 	});
 
 	$start = microtime(true);
-	$client->get('/');
-	//$client->post('/', 'k=v');
-	//$client->put('/','key=val');
-	//$client->delete('/','key2=val2');
-	$client->dispatch();
 
+	$http->get('/');
+	//$http->post('/', 'k=v');
+	//$http->put('/','key=val');
+	//$http->delete('/','key2=val2');
+	$http->dispatch();
 	$base->dispatch();
 
 	echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;

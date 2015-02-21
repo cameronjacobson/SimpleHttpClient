@@ -17,34 +17,35 @@ try{
 	]);
 	$start = microtime(true);
 
-	$client->get('/d/quotes.csv?s=GOOG&f=csv');
-	$client->get('/d/quotes.csv?s=YHOO&f=csv');
-	//$client->post('/', 'k=v');
-	//$client->put('/','key=val');
-	//$client->delete('/','key2=val2');
-	$client->fetch();
+	$http = $client->getContext();
+
+	$http->get('/d/quotes.csv?s=GOOG&f=csv');
+	$http->get('/d/quotes.csv?s=YHOO&f=csv');
+	//$http->post('/', 'k=v');
+	//$http->put('/','key=val');
+	//$http->delete('/','key2=val2');
+
+	$http->fetch();
 
 	echo PHP_EOL.'RAW RESULTS:'.PHP_EOL;
 	echo '====================='.PHP_EOL;
-	$buffers = $client->getBuffers(function($val){return $val;});
+	$buffers = $http->getBuffers(function($val){return $val;});
 	var_dump($buffers);
 
 	echo PHP_EOL.'BODY ONLY:'.PHP_EOL;
 	echo '====================='.PHP_EOL;
-	$buffers = $client->getBuffers('body');
+	$buffers = $http->getBuffers('body');
 	var_dump($buffers);
 
 	echo PHP_EOL.'RAW HEADERS:'.PHP_EOL;
 	echo '====================='.PHP_EOL;
-	$buffers = $client->getBuffers('raw_headers');
+	$buffers = $http->getBuffers('raw_headers');
 	var_dump($buffers);
 
 	echo PHP_EOL.'PARSED HEADERS:'.PHP_EOL;
 	echo '====================='.PHP_EOL;
-	$buffers = $client->getBuffers('parsed_headers');
+	$buffers = $http->getBuffers('parsed_headers');
 	var_dump($buffers);
-
-	$client->flush();
 
 	echo 'FINISHED IN: '.(microtime(true)-$start).' SECONDS'.PHP_EOL;
 
