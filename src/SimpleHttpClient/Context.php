@@ -123,7 +123,7 @@ class Context
 								$cb();
 							}
 							else{
-								$this->getBase()->exit();
+								$this->getBase()->stop();
 							}
 						}
 
