@@ -163,7 +163,7 @@ class Context
 		$this->queue->enqueue($fn);
 	}
 
-    private function parseHeaders($raw_headers){
+    public function parseHeaders($raw_headers){
 
         // for headers that continue to next line
         $headers = preg_replace("/\r\n\s+?/"," ",$raw_headers);
