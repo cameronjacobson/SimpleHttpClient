@@ -41,6 +41,10 @@ class Context
 		return $return;
 	}
 
+	public function cleanUp(){
+		$this->buffers = array();
+	}
+
 	public function getCount(){
 		return $this->count;
 	}
