@@ -150,7 +150,7 @@ class Context
 			if (!$output->add(
 				"{$method} {$url} HTTP/1.0\r\n".
 				"Host: {$this->getHost()}:{$this->getPort()}\r\n".
-				(empty($this->getUser()) ? '' : 'Authorization: Basic '.base64_encode($this->getUser().':'.$this->getPass())."\r\n").
+				(empty($this->getUser()) ? '' : 'Authorization: Basic '.base64_encode($this->getUser().':'.$this->getPassword())."\r\n").
 				"Content-Type: {$this->getContentType()}\r\n".
 				'Content-Length: ' . strlen($body) . "\r\n".
 				"Connection: Close\r\n\r\n{$body}"
